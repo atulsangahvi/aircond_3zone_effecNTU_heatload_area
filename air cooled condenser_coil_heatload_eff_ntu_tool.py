@@ -149,6 +149,29 @@ mu_air = PropsSI("V", "T", T_air_K, "P", 101325, "Air")
 Re_fin = rho_air * air_velocity_fin * tube_od / mu_air
 
 st.header("Air Flow Velocities and Reynolds Number")
-st.write(f"**Air Face Velocity:** {air_velocity_face:.2f} m/s")
+
+# --------------------------------
+
+# --------------------------------
+# Zukauskas Correlation for Tube Banks
+# --------------------------------
+# Compute Reynolds number based on tube OD
+Re = rho * air_velocity_fin * tube_od_m / mu
+Pr = cp * mu / k  # Prandtl number
+
+# Zukauskas for staggered tube bank, valid 100 < Re < 10000
+C_z = 0.193
+m_z = 0.618
+Nu = C_z * (Re ** m_z) * (Pr ** (1/3))
+h_air = Nu * k / tube_od_m
+U = h_air  # assuming air-side dominates
+
+st.subheader("Zukauskas Heat Transfer Estimation")
+st.write(f"**Reynolds Number (Re):** {Re:.2f}")
+st.write(f"**Prandtl Number (Pr):** {Pr:.3f}")
+st.write(f"**Nusselt Number (Nu):** {Nu:.2f}")
+st.write(f"**Air-side Heat Transfer Coefficient (h):** {h_air:.2f} W/m²-K")
+st.write(f"**Estimated Overall U-value:** {U:.2f} W/m²-K")
+ace Velocity:** {air_velocity_face:.2f} m/s")
 st.write(f"**Air Velocity in Fin Passage:** {air_velocity_fin:.2f} m/s")
 st.write(f"**Reynolds Number (based on tube OD):** {Re_fin:.0f}")
