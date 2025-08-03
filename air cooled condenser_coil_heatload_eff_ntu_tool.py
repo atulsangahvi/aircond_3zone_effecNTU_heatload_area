@@ -19,6 +19,9 @@ T_out_subcool = st.sidebar.number_input("Subcooled Liquid Temp (°C)", value=50.
 # Air inputs
 st.sidebar.header("Air Inputs")
 T_air_in = st.sidebar.number_input("Air Inlet Temp (°C)", value=35.0)
+
+free_area_percent = st.slider("Free Flow Area (%)", min_value=10, max_value=100, value=25)
+
 airflow_cmh = st.sidebar.number_input("Air Flow Rate (m³/h)", value=10000)
 
 # Coil geometry
