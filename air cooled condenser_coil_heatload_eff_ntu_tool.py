@@ -26,7 +26,7 @@ st.sidebar.header("Coil Geometry")
 tube_od_mm = st.sidebar.number_input("Tube Outer Diameter (mm)", value=9.525)
 tube_thickness_mm = st.sidebar.number_input("Tube Wall Thickness (mm)", value=0.35)
 tube_pitch_mm = st.sidebar.number_input("Tube Pitch (horizontal) (mm)", value=25.4)
-row_pitch_mm = st.sidebar.number_input("Row Pitch (depth) (mm)", value=22.0)
+row_pitch_mm = st.sidebar.number_input("Row Pitch (depth) (mm)", value=25.4)
 fin_thickness_mm = st.sidebar.number_input("Fin Thickness (mm)", value=0.12)
 fpi = st.sidebar.number_input("Fins Per Inch (FPI)", value=12)
 face_width_m = st.sidebar.number_input("Coil Face Width (m)", value=1.0)
@@ -44,7 +44,7 @@ tube_od = tube_od_mm / 1000
 tube_pitch = tube_pitch_mm / 1000
 row_pitch = row_pitch_mm / 1000
 fin_thickness = fin_thickness_mm / 1000
-fins_per_m = fpi * 39.37
+fins_per_m_vertical = fpi / 0.0254
 fin_depth = row_pitch * num_rows
 
 tubes_per_row = int(face_width_m / tube_pitch)
@@ -53,9 +53,9 @@ total_tubes = tubes_per_row * num_rows
 total_tube_length = tube_length_per_tube * total_tubes
 tube_ext_area = total_tube_length * math.pi * tube_od
 
+number_of_fins = int(face_height_m * fins_per_m_vertical)
 area_per_fin = 2 * face_width_m * fin_depth
-total_fins = int(fins_per_m * fin_depth)
-total_fin_area = area_per_fin * total_fins
+total_fin_area = number_of_fins * area_per_fin
 
 total_air_side_area = tube_ext_area + total_fin_area
 
@@ -119,7 +119,7 @@ st.write(f"**Tubes per Row:** {tubes_per_row}")
 st.write(f"**Tube Length per Tube:** {tube_length_per_tube:.2f} m")
 st.write(f"**Total Tubes:** {total_tubes}")
 st.write(f"**Total Tube Length:** {total_tube_length:.2f} m")
-st.write(f"**Total Fins:** {total_fins}")
+st.write(f"**Number of Fins:** {number_of_fins}")
 st.write(f"**Area per Fin:** {area_per_fin:.4f} m²")
 st.write(f"**Total Fin Area:** {total_fin_area:.2f} m²")
 st.write(f"**Tube External Area:** {tube_ext_area:.2f} m²")
