@@ -4,9 +4,9 @@ import streamlit as st
 import pandas as pd
 from CoolProp.CoolProp import PropsSI, get_global_param_string
 
-st.title("Air-Cooled Condenser Design Tool (NTU + Geometry Breakdown)")
+st.title("Air-Cooled Condenser - NTU & Geometry Breakdown")
 
-# Refrigerant setup
+# Refrigerant inputs
 st.sidebar.header("Refrigerant Inputs")
 fluid_list = get_global_param_string("FluidsList").split(',')
 refrigerants = sorted([f for f in fluid_list if f.startswith("R")])
@@ -16,39 +16,55 @@ T_in_superheat = st.sidebar.number_input("Inlet Superheat Temp (°C)", value=95.
 T_cond = st.sidebar.number_input("Condensation Temp (°C)", value=45.0)
 T_out_subcool = st.sidebar.number_input("Subcooled Liquid Temp (°C)", value=50.0)
 
-# Air side
+# Air inputs
 st.sidebar.header("Air Inputs")
 T_air_in = st.sidebar.number_input("Air Inlet Temp (°C)", value=35.0)
 airflow_cmh = st.sidebar.number_input("Air Flow Rate (m³/h)", value=10000)
 
-# Coil Geometry
+# Coil geometry
 st.sidebar.header("Coil Geometry")
 tube_od_mm = st.sidebar.number_input("Tube Outer Diameter (mm)", value=9.525)
 tube_thickness_mm = st.sidebar.number_input("Tube Wall Thickness (mm)", value=0.35)
-tube_pitch_mm = st.sidebar.number_input("Tube Pitch (mm)", value=25.4)
-row_pitch_mm = st.sidebar.number_input("Row Pitch (mm)", value=22.0)
+tube_pitch_mm = st.sidebar.number_input("Tube Pitch (horizontal) (mm)", value=25.4)
+row_pitch_mm = st.sidebar.number_input("Row Pitch (depth) (mm)", value=22.0)
 fin_thickness_mm = st.sidebar.number_input("Fin Thickness (mm)", value=0.12)
-fpi = st.sidebar.number_input("Fins Per Inch", value=12)
+fpi = st.sidebar.number_input("Fins Per Inch (FPI)", value=12)
 face_width_m = st.sidebar.number_input("Coil Face Width (m)", value=1.0)
 face_height_m = st.sidebar.number_input("Coil Face Height (m)", value=1.0)
+num_rows = st.sidebar.number_input("Number of Rows", value=4)
 
-# U values
+# U-values
 st.sidebar.header("U Values (W/m²·K)")
 U_subcool = st.sidebar.number_input("U - Subcooling", value=40.0)
 U_cond = st.sidebar.number_input("U - Condensing", value=60.0)
 U_desuper = st.sidebar.number_input("U - Desuperheating", value=40.0)
 
-# Enthalpies and pressures
+# Geometry calculations
+tube_od = tube_od_mm / 1000
+tube_pitch = tube_pitch_mm / 1000
+row_pitch = row_pitch_mm / 1000
+fin_thickness = fin_thickness_mm / 1000
+fins_per_m = fpi * 39.37
+fin_depth = row_pitch * num_rows
+
+tubes_per_row = int(face_width_m / tube_pitch)
+tube_length_per_tube = face_height_m
+total_tubes = tubes_per_row * num_rows
+total_tube_length = tube_length_per_tube * total_tubes
+tube_ext_area = total_tube_length * math.pi * tube_od
+
+area_per_fin = 2 * face_width_m * fin_depth
+total_fins = int(fins_per_m * fin_depth)
+total_fin_area = area_per_fin * total_fins
+
+total_air_side_area = tube_ext_area + total_fin_area
+
+# Refrigerant enthalpies
 P_cond = PropsSI("P", "T", T_cond + 273.15, "Q", 0, fluid)
 h1 = PropsSI("H", "T", T_in_superheat + 273.15, "P", P_cond, fluid)
 h2 = PropsSI("H", "T", T_cond + 273.15, "Q", 1, fluid)
 h3 = PropsSI("H", "T", T_cond + 273.15, "Q", 0, fluid)
 h4 = PropsSI("H", "T", T_out_subcool + 273.15, "P", P_cond, fluid)
-
-# Zone-wise heat loads
-q_desuper = m_dot * (h1 - h2) / 1000
-q_cond = m_dot * (h2 - h3) / 1000
-q_subcool = m_dot * (h3 - h4) / 1000
 
 # Air properties
 T_air_K = T_air_in + 273.15
@@ -77,43 +93,37 @@ def zone_calc(name, q_kw, T_ref, T_air_in, U):
         "T_air_out (°C)": T_air_out
     }
 
-# NTU calculation zone by zone
+# Heat loads
+q_desuper = m_dot * (h1 - h2) / 1000
+q_cond = m_dot * (h2 - h3) / 1000
+q_subcool = m_dot * (h3 - h4) / 1000
+
+# NTU calculation
 res_subcool = zone_calc("Subcooling", q_subcool, T_out_subcool, T_air_in, U_subcool)
 res_cond = zone_calc("Condensing", q_cond, T_cond, res_subcool["T_air_out (°C)"], U_cond)
 res_desuper = zone_calc("Desuperheating", q_desuper, T_in_superheat, res_cond["T_air_out (°C)"], U_desuper)
 
-# Geometry calculations
-tube_od = tube_od_mm / 1000
-tube_pitch = tube_pitch_mm / 1000
-row_pitch = row_pitch_mm / 1000
-fins_per_m = fpi * 39.37
-fin_thickness = fin_thickness_mm / 1000
-
-tubes_per_row = int(face_width_m / tube_pitch)
-total_tubes = tubes_per_row * int(face_height_m / row_pitch)
-tube_ext_area = total_tubes * (math.pi * tube_od * face_height_m)
-fin_area_per_fin = 2 * face_width_m * face_height_m
-total_fins = fins_per_m * face_width_m
-total_fin_area = total_fins * fin_area_per_fin
-total_air_side_area = total_fin_area + tube_ext_area
-
-total_tube_length = total_tubes * face_height_m
+# Area/tube length ratio and tube rows per zone
 area_per_m_tube = total_air_side_area / total_tube_length
-
 for res in [res_subcool, res_cond, res_desuper]:
     res["Tube Length (m)"] = res["Area Required (m²)"] / area_per_m_tube
-    res["Tube Rows Required"] = res["Tube Length (m)"] / (face_height_m * tubes_per_row)
+    res["Tube Rows Required"] = res["Tube Length (m)"] / (tube_length_per_tube * tubes_per_row)
 
 df = pd.DataFrame([res_subcool, res_cond, res_desuper])
 
 st.header("Zone-wise NTU + Area + Tube Geometry")
 st.dataframe(df)
 
-st.header("Air Side Geometry Summary")
-st.write(f"**Tube External Area:** {tube_ext_area:.2f} m²")
-st.write(f"**Fin Area:** {total_fin_area:.2f} m²")
-st.write(f"**Total Air Side Area:** {total_air_side_area:.2f} m²")
+st.header("Geometry Breakdown")
+st.write(f"**Tubes per Row:** {tubes_per_row}")
+st.write(f"**Tube Length per Tube:** {tube_length_per_tube:.2f} m")
+st.write(f"**Total Tubes:** {total_tubes}")
 st.write(f"**Total Tube Length:** {total_tube_length:.2f} m")
+st.write(f"**Total Fins:** {total_fins}")
+st.write(f"**Area per Fin:** {area_per_fin:.4f} m²")
+st.write(f"**Total Fin Area:** {total_fin_area:.2f} m²")
+st.write(f"**Tube External Area:** {tube_ext_area:.2f} m²")
+st.write(f"**Total Air-Side Area:** {total_air_side_area:.2f} m²")
 st.write(f"**Area per meter of tube:** {area_per_m_tube:.4f} m²/m")
 
 st.header("Refrigerant Enthalpies")
