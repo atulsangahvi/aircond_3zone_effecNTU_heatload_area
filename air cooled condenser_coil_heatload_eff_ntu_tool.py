@@ -156,6 +156,13 @@ st.header("Air Flow Velocities and Reynolds Number")
 # Zukauskas Correlation for Tube Banks
 # --------------------------------
 # Compute Reynolds number based on tube OD
+# --- Air properties for Re, Nu, h ---
+T_K = air_temp_C + 273.15
+P = 101325  # Pa
+rho = PropsSI('D', 'T', T_K, 'P', P, 'Air')
+mu = PropsSI('V', 'T', T_K, 'P', P, 'Air')
+k = PropsSI('L', 'T', T_K, 'P', P, 'Air')
+cp = PropsSI('C', 'T', T_K, 'P', P, 'Air')
 Re = rho * air_velocity_fin * tube_od_m / mu
 Pr = cp * mu / k  # Prandtl number
 
