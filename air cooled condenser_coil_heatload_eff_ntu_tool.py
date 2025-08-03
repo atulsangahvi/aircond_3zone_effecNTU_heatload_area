@@ -4,158 +4,156 @@ import streamlit as st
 import pandas as pd
 from CoolProp.CoolProp import PropsSI, get_global_param_string
 
-st.title("Air-Cooled Condenser: Geometry, Heat Load, Pressure Drop")
+st.title("Comprehensive Air-Cooled Condenser Design Tool")
 
-# -------------------------------
-# Coil Geometry Input Parameters
-# -------------------------------
-st.header("Coil Geometry")
+# ----------------------
+# Inputs: Geometry
+# ----------------------
+st.sidebar.header("Geometry Inputs")
+tube_od_mm = st.sidebar.number_input("Tube Outer Diameter (mm)", value=9.525)
+tube_thickness_mm = st.sidebar.number_input("Tube Wall Thickness (mm)", value=0.35)
+row_pitch_mm = st.sidebar.number_input("Row Pitch (mm)", value=25.4)
+tube_pitch_mm = st.sidebar.number_input("Tube Pitch (mm)", value=25.4)
+fpi = st.sidebar.number_input("Fins Per Inch", value=12)
+fin_thickness_mm = st.sidebar.number_input("Fin Thickness (mm)", value=0.12)
+fin_material = st.sidebar.selectbox("Fin Material", ["Aluminum", "Copper"])
+face_width_m = st.sidebar.number_input("Coil Face Width (m)", value=1.0)
+face_height_m = st.sidebar.number_input("Coil Face Height (m)", value=1.0)
+num_rows = st.sidebar.number_input("Total Number of Rows", value=4, step=1)
+free_area_percent = st.sidebar.slider("Free Flow Area %", 10, 100, 25)
 
-tube_od_mm = st.number_input("Tube Outer Diameter (mm)", value=9.525)
-tube_thickness_mm = st.number_input("Tube Wall Thickness (mm)", value=0.35)
-row_pitch_mm = st.number_input("Row Pitch (mm)", value=25.4)
-tube_pitch_mm = st.number_input("Tube Pitch (mm)", value=25.4)
-fin_thickness_mm = st.number_input("Fin Thickness (mm)", value=0.12)
-fpi = st.number_input("Fins per Inch (FPI)", value=12)
-num_rows = st.number_input("Number of Tube Rows", value=4)
-face_width_m = st.number_input("Coil Face Width (m)", value=1.2)
-face_height_m = st.number_input("Coil Face Height (m)", value=1.0)
-airflow_cmh = st.number_input("Airflow Rate (m³/h)", value=10000)
-air_temp_C = st.number_input("Air Inlet Temperature (°C)", value=35.0)
-free_area_percent = st.slider("Free Flow Area (%)", 10, 100, 30)
-fin_material = st.selectbox("Fin Material", ["Aluminum", "Copper"])
-
-# Unit conversions
-tube_od_m = tube_od_mm / 1000
-tube_thickness_m = tube_thickness_mm / 1000
-row_pitch_m = row_pitch_mm / 1000
-tube_pitch_m = tube_pitch_mm / 1000
-fin_thickness_m = fin_thickness_mm / 1000
-fins_per_m = fpi * 39.37
-airflow_m3s = airflow_cmh / 3600
-face_area_m2 = face_width_m * face_height_m
-net_free_flow_area = face_area_m2 * (free_area_percent / 100)
-
-# Tube layout
-tubes_per_row = int(face_width_m / tube_pitch_m)
-total_tubes = tubes_per_row * int(num_rows)
-tube_length_per_tube = face_height_m
-total_tube_length = total_tubes * tube_length_per_tube
-
-# Fin geometry
-num_fins = int(face_height_m * fpi / 0.0254)
-area_per_fin = face_width_m * (num_rows * row_pitch_m)
-total_fin_area = num_fins * area_per_fin
-tube_external_area = math.pi * tube_od_m * total_tube_length
-total_air_side_area = tube_external_area + total_fin_area
-area_per_meter_tube = total_air_side_area / total_tube_length
-
-# Air velocities
-air_velocity_face = airflow_m3s / face_area_m2
-air_velocity_fin = airflow_m3s / net_free_flow_area
-
-# Air properties and Re
-T_K = air_temp_C + 273.15
-rho = PropsSI("D", "T", T_K, "P", 101325, "Air")
-mu = PropsSI("V", "T", T_K, "P", 101325, "Air")
-k_air = PropsSI("L", "T", T_K, "P", 101325, "Air")
-cp_air = PropsSI("C", "T", T_K, "P", 101325, "Air")
-Pr = cp_air * mu / k_air
-Re = rho * air_velocity_fin * tube_od_m / mu
-
-# Zukauskas Nu
-C, m, n = (0.9, 0.4, 0.36) if Re < 1000 else (0.52, 0.5, 0.36)
-Nu = C * (Re**m) * (Pr**n)
-h_air = Nu * k_air / tube_od_m
-
-# Fin efficiency
-k_fin = 205 if fin_material == "Aluminum" else 385
-L_fin = 0.5 * (math.sqrt(row_pitch_m**2 + tube_pitch_m**2) - tube_od_m)
-m_fin = math.sqrt(2 * h_air / (k_fin * fin_thickness_m))
-fin_eff = math.tanh(m_fin * L_fin) / (m_fin * L_fin)
-
-# -------------------------------
-# Refrigerant Heat Load
-# -------------------------------
-st.header("Refrigerant Heat Load Calculation")
-
+# ----------------------
+# Inputs: Refrigerant
+# ----------------------
+st.sidebar.header("Refrigerant Inputs")
 fluid_list = get_global_param_string("FluidsList").split(',')
 refrigerants = sorted([f for f in fluid_list if f.startswith("R")])
-fluid = st.selectbox("Select Refrigerant", refrigerants, index=refrigerants.index("R134a") if "R134a" in refrigerants else 0)
+fluid = st.sidebar.selectbox("Refrigerant", refrigerants, index=refrigerants.index("R134a") if "R134a" in refrigerants else 0)
 
-m_dot = st.number_input("Refrigerant Mass Flow Rate (kg/s)", value=0.6)
-T_superheat = st.number_input("Superheated Inlet Temp (°C)", value=95.0)
-T_subcool = st.number_input("Subcooled Outlet Temp (°C)", value=52.7)
-T_cond = st.number_input("Condensation Temp (°C)", value=55.0)
+T1 = st.sidebar.number_input("Inlet Superheat Temp (°C)", value=95.0)
+T3 = st.sidebar.number_input("Outlet Subcooled Temp (°C)", value=52.7)
+T_cond = st.sidebar.number_input("Condensing Temp (°C)", value=55.0)
+m_dot = st.sidebar.number_input("Mass Flow Rate (kg/s)", value=0.6)
+air_inlet_temp = st.sidebar.number_input("Air Inlet Temp (°C)", value=35.0)
+airflow_cmh = st.sidebar.number_input("Air Flow (m³/hr)", value=10000)
+num_feeds = st.sidebar.number_input("Number of Feeds", value=4)
+
+# ----------------------
+# U-value (Optional)
+# ----------------------
+st.sidebar.header("U-Value Inputs (Optional)")
+U_user = st.sidebar.checkbox("Use custom U-values")
+U_desuper = st.sidebar.number_input("U-value Desuperheating (W/m²K)", value=45.0)
+U_cond = st.sidebar.number_input("U-value Condensation (W/m²K)", value=55.0)
+U_subcool = st.sidebar.number_input("U-value Subcooling (W/m²K)", value=65.0)
+
+# Geometry Calculations
+tube_od_m = tube_od_mm / 1000
+tube_thk_m = tube_thickness_mm / 1000
+tube_id_m = tube_od_m - 2 * tube_thk_m
+row_pitch_m = row_pitch_mm / 1000
+tube_pitch_m = tube_pitch_mm / 1000
+fins_per_m = fpi * 39.37
+fin_thk_m = fin_thickness_mm / 1000
+fin_k = 235 if fin_material == "Aluminum" else 400
+frontal_area_m2 = face_width_m * face_height_m
+net_free_area = frontal_area_m2 * (free_area_percent / 100)
+airflow_m3s = airflow_cmh / 3600
+air_velocity_face = airflow_m3s / frontal_area_m2
+air_velocity_fin = airflow_m3s / net_free_area
+
+# Tube details
+tubes_per_row = math.floor(face_width_m / tube_pitch_m)
+tube_length_per_tube = face_height_m
+total_tubes = tubes_per_row * num_rows
+total_tube_length = total_tubes * tube_length_per_tube
+A_tube_ext = total_tube_length * math.pi * tube_od_m
+
+# Fin details
+num_fins = math.floor(face_height_m / 0.0254 * fpi)
+L_fin = min(row_pitch_m, tube_pitch_m) / 2
+A_fin = num_fins * face_width_m * L_fin * 2
+m = math.sqrt((2 * 40) / (fin_k * fin_thk_m))
+eta_fin = math.tanh(m * L_fin) / (m * L_fin)
+A_air_total = A_tube_ext + A_fin * eta_fin
+A_air_per_m = A_air_total / total_tube_length
+
+# Air properties
+T_K = air_inlet_temp + 273.15
+mu = PropsSI("V", "T", T_K, "P", 101325, "Air")
+k_air = PropsSI("L", "T", T_K, "P", 101325, "Air")
+rho_air = PropsSI("D", "T", T_K, "P", 101325, "Air")
+cp_air = PropsSI("C", "T", T_K, "P", 101325, "Air")
+Pr = mu * cp_air / k_air
+Re = rho_air * air_velocity_fin * tube_od_m / mu
+C = 0.27 if Re < 1000 else 0.021
+n = 0.63 if Re < 1000 else 0.84
+Nu = C * Re**n * Pr**0.36
+h_air = Nu * k_air / tube_od_m
+
+# U-value logic
+U_final = lambda U_fixed: U_fixed if U_user else h_air
+
+# Refrigerant enthalpies
 P_cond = PropsSI("P", "T", T_cond + 273.15, "Q", 0, fluid)
-
-T1 = T_superheat + 273.15
-T3 = T_subcool + 273.15
-T_sat = T_cond + 273.15
-
-h1 = PropsSI("H", "P", P_cond, "T", T1, fluid)
+h1 = PropsSI("H", "P", P_cond, "T", T1 + 273.15, fluid)
 h2 = PropsSI("H", "P", P_cond, "Q", 1, fluid)
 h3 = PropsSI("H", "P", P_cond, "Q", 0, fluid)
-h4 = PropsSI("H", "P", P_cond, "T", T3, fluid)
+h4 = PropsSI("H", "P", P_cond, "T", T3 + 273.15, fluid)
 
-Q_desuper = m_dot * (h1 - h2) / 1000
-Q_cond = m_dot * (h2 - h3) / 1000
-Q_subcool = m_dot * (h3 - h4) / 1000
-Q_total = Q_desuper + Q_cond + Q_subcool
+Q_sens = m_dot * (h1 - h2) / 1000
+Q_lat = m_dot * (h2 - h3) / 1000
+Q_sub = m_dot * (h3 - h4) / 1000
 
-# -------------------------------
-# Refrigerant Velocity in Tubes
-# -------------------------------
-st.subheader("Refrigerant Circuit Velocity")
-num_feeds = st.number_input("Number of Feeds/Circuits", value=4, min_value=1)
+cp_air_kJ = cp_air / 1000
+C_air = airflow_m3s * rho_air * cp_air_kJ
+zones = [("Desuperheat", Q_sens, U_final(U_desuper)), ("Condensing", Q_lat, U_final(U_cond)), ("Subcooling", Q_sub, U_final(U_subcool))]
+
+air_temp = air_inlet_temp
+zone_outputs = []
+for label, Q_zone, U in zones:
+    C_r = m_dot * cp_air_kJ
+    C_min = min(C_air, C_r)
+    C_max = max(C_air, C_r)
+    C_ratio = C_min / C_max
+    epsilon = Q_zone / (C_min * (air_temp - 0 + Q_zone / C_min)) if (C_min > 0 and Q_zone > 0) else 0.5
+    NTU = -math.log(1 - epsilon)
+    A_required = NTU * C_min * 1000 / U
+    tube_len_zone = A_required / A_air_per_m
+    rows_zone = tube_len_zone / (tube_length_per_tube * tubes_per_row)
+    air_out = air_temp + Q_zone / C_air
+    zone_outputs.append((label, Q_zone, A_required, tube_len_zone, rows_zone, air_out))
+    air_temp = air_out
+
+# Refrigerant velocity
 circuits = max(1, tubes_per_row // num_feeds)
-mass_flow_per_circuit = m_dot / circuits
-tube_id_m = tube_od_m - 2 * tube_thickness_m
-A_tube_internal = (math.pi / 4) * tube_id_m**2
-rho_vap = PropsSI("D", "P", P_cond, "Q", 1, fluid)
-rho_liq = PropsSI("D", "P", P_cond, "Q", 0, fluid)
-rho_avg = (rho_vap + rho_liq) / 2
-v_refrigerant = mass_flow_per_circuit / (rho_avg * A_tube_internal)
+m_dot_circuit = m_dot / circuits
+A_int = (math.pi / 4) * tube_id_m**2
+rho_v = PropsSI("D", "P", P_cond, "Q", 1, fluid)
+rho_l = PropsSI("D", "P", P_cond, "Q", 0, fluid)
+rho_avg = (rho_v + rho_l) / 2
+v_refrigerant = m_dot_circuit / (rho_avg * A_int)
 
-# -------------------------------
 # Output
-# -------------------------------
-st.header("Output Summary")
+st.header("Zone-by-Zone Effectiveness Results")
+df = pd.DataFrame(zone_outputs, columns=["Zone", "Q (kW)", "Area (m²)", "Tube Length (m)", "Rows Required", "Air Temp Out (°C)"])
+st.dataframe(df.style.format({"Q (kW)": "{:.2f}", "Area (m²)": "{:.2f}", "Rows Required": "{:.2f}", "Air Temp Out (°C)": "{:.2f}"}))
 
-st.subheader("Geometry Breakdown")
-st.write(f"Tubes per Row: {tubes_per_row}")
-st.write(f"Tube Length per Tube: {tube_length_per_tube:.2f} m")
-st.write(f"Total Tubes: {total_tubes}")
-st.write(f"Total Tube Length: {total_tube_length:.2f} m")
-st.write(f"Number of Fins: {num_fins}")
-st.write(f"Area per Fin: {area_per_fin:.4f} m²")
-st.write(f"Total Fin Area: {total_fin_area:.2f} m²")
-st.write(f"Tube External Area: {tube_external_area:.2f} m²")
-st.write(f"Total Air-Side Area: {total_air_side_area:.2f} m²")
-st.write(f"Area per meter of tube: {area_per_meter_tube:.4f} m²/m")
+st.header("Refrigerant Velocity Inside Tube")
+st.write(f"**Number of Circuits:** {circuits}")
+st.write(f"**Mass Flow per Circuit:** {m_dot_circuit:.3f} kg/s")
+st.write(f"**Tube Inner Diameter:** {tube_id_m*1000:.2f} mm")
+st.write(f"**Refrigerant Velocity:** {v_refrigerant:.2f} m/s")
 
-st.subheader("Air Flow and Heat Transfer")
-st.write(f"Air Face Velocity: {air_velocity_face:.2f} m/s")
-st.write(f"Air Velocity in Fin Passage: {air_velocity_fin:.2f} m/s")
-st.write(f"Reynolds Number (Re): {Re:.2f}")
-st.write(f"Nusselt Number (Nu): {Nu:.2f}")
-st.write(f"Air-side h (W/m²-K): {h_air:.2f}")
-st.write(f"Fin Efficiency: {fin_eff:.4f}")
-
-st.subheader("Refrigerant Enthalpies")
-st.write(f"h1 (Inlet Superheated): {h1:.2f} J/kg")
-st.write(f"h2 (Saturated Vapor): {h2:.2f} J/kg")
-st.write(f"h3 (Saturated Liquid): {h3:.2f} J/kg")
-st.write(f"h4 (Subcooled): {h4:.2f} J/kg")
-
-st.subheader("Heat Load Breakdown")
-st.write(f"Sensible (Desuperheating): {Q_desuper:.2f} kW")
-st.write(f"Latent (Condensing): {Q_cond:.2f} kW")
-st.write(f"Subcooling: {Q_subcool:.2f} kW")
-st.write(f"Total Heat Removed: {Q_total:.2f} kW")
-
-st.subheader("Refrigerant Circuit Velocity")
-st.write(f"Number of Circuits: {circuits}")
-st.write(f"Mass Flow per Circuit: {mass_flow_per_circuit:.4f} kg/s")
-st.write(f"Tube Inner Diameter: {tube_id_m*1000:.2f} mm")
-st.write(f"Refrigerant Velocity in Tube: {v_refrigerant:.2f} m/s")
+st.header("Air Side Summary")
+st.write(f"**Tubes per Row:** {tubes_per_row}")
+st.write(f"**Total Tube Length:** {total_tube_length:.2f} m")
+st.write(f"**Total Tube Area:** {A_tube_ext:.2f} m²")
+st.write(f"**Fin Area (corrected):** {A_fin*eta_fin:.2f} m²")
+st.write(f"**Total Air-Side Area:** {A_air_total:.2f} m²")
+st.write(f"**Face Velocity:** {air_velocity_face:.2f} m/s")
+st.write(f"**Fin Passage Velocity:** {air_velocity_fin:.2f} m/s")
+st.write(f"**Reynolds Number:** {Re:.0f}")
+st.write(f"**Nusselt Number:** {Nu:.1f}")
+st.write(f"**Air-Side h (W/m²K):** {h_air:.2f}")
+st.write(f"**U Estimated:** {h_air:.2f} W/m²K" if not U_user else "**U Provided by User**")
