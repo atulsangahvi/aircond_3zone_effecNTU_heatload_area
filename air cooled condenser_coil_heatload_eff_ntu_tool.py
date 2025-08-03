@@ -34,6 +34,7 @@ fin_thickness_mm = st.sidebar.number_input("Fin Thickness (mm)", value=0.12)
 fpi = st.sidebar.number_input("Fins Per Inch (FPI)", value=12)
 face_width_m = st.sidebar.number_input("Coil Face Width (m)", value=1.0)
 face_height_m = st.sidebar.number_input("Coil Face Height (m)", value=1.0)
+air_temp_C = st.number_input("Air Inlet Temperature (°C)", value=35.0)
 num_rows = st.sidebar.number_input("Number of Rows", value=4)
 
 # U-values
