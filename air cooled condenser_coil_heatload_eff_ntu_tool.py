@@ -164,6 +164,7 @@ rho = PropsSI('D', 'T', T_K, 'P', P, 'Air')
 mu = PropsSI('V', 'T', T_K, 'P', P, 'Air')
 k = PropsSI('L', 'T', T_K, 'P', P, 'Air')
 cp = PropsSI('C', 'T', T_K, 'P', P, 'Air')
+tube_od_m = tube_od_mm / 1000  # Convert mm to meters
 Re = rho * air_velocity_fin * tube_od_m / mu
 Pr = cp * mu / k  # Prandtl number
 
