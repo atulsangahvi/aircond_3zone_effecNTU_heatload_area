@@ -131,3 +131,21 @@ st.write(f"h1 (Inlet Superheated): {h1:.2f} J/kg")
 st.write(f"h2 (Saturated Vapor): {h2:.2f} J/kg")
 st.write(f"h3 (Saturated Liquid): {h3:.2f} J/kg")
 st.write(f"h4 (Subcooled): {h4:.2f} J/kg")
+
+
+# Air velocity and Reynolds number section
+face_area_m2 = face_width_m * face_height_m
+airflow_m3s = airflow_cmh / 3600
+air_velocity_face = airflow_m3s / face_area_m2
+air_velocity_fin = airflow_m3s / (face_area_m2 * (free_area_percent / 100))
+
+T_air_K = T_air_in + 273.15
+rho_air = PropsSI("D", "T", T_air_K, "P", 101325, "Air")
+mu_air = PropsSI("V", "T", T_air_K, "P", 101325, "Air")
+
+Re_fin = rho_air * air_velocity_fin * tube_od / mu_air
+
+st.header("Air Flow Velocities and Reynolds Number")
+st.write(f"**Air Face Velocity:** {air_velocity_face:.2f} m/s")
+st.write(f"**Air Velocity in Fin Passage:** {air_velocity_fin:.2f} m/s")
+st.write(f"**Reynolds Number (based on tube OD):** {Re_fin:.0f}")
