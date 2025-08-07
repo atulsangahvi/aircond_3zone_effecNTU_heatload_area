@@ -110,13 +110,7 @@ v_refrigerant = m_dot_circuit / (A_tube * PropsSI("D", "P", P_cond, "Q", 0.5, fl
 # Effectiveness-NTU
 cp_air_kJ = cp_air / 1000
 C_air = airflow_m3s * rho_air * cp_air_kJ
-zone_data = [
-     ("Subcooling", Q_sub, U_final(U_subcool),
-       ("Condensing", Q_lat, U_final(U_cond)), 
-       ( "Desuperheat", Q_sens, U_final(U_desuper)
-       
-    
-]
+zone_data = [("Subcooling", Q_sub, U_final(U_subcool)),("Condensing", Q_lat, U_final(U_cond)), ( "Desuperheat", Q_sens, U_final(U_desuper))]
 zone_outputs = []
 air_t = air_temp
 for label, Q_zone, U in zone_data:
