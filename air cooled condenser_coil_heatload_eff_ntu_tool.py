@@ -67,7 +67,7 @@ A_tube_ext = total_tube_length * math.pi * tube_od_m
 # Fin Surface Area with Correction
 num_fins = math.floor(face_height_m / 0.0254 * fpi)
 L_fin = min(row_pitch_true_m, tube_pitch_m) / 2
-A_fin_raw = row_pitch_true_m * face_width_m * num_fins
+A_fin_raw = row_pitch_true_m * num_rows * face_width_m * num_fins
 A_hole = (math.pi / 4 * tube_od_m ** 2) * total_tubes
 A_fin = A_fin_raw - A_hole
 m = math.sqrt((2 * 40) / (fin_k * fin_thk_m))
