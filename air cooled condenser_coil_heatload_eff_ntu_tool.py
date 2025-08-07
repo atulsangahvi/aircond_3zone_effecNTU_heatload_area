@@ -29,10 +29,10 @@ refrigerants = sorted([f for f in fluid_list if f.startswith("R")])
 fluid = st.sidebar.selectbox("Refrigerant", refrigerants, index=refrigerants.index("R134a") if "R134a" in refrigerants else 0)
 
 T1 = st.sidebar.number_input("Inlet Superheat Temp (°C)", value=95.0)
-T3 = st.sidebar.number_input("Outlet Subcooled Temp (°C)", value=52.7)
-T_cond = st.sidebar.number_input("Condensing Temp (°C)", value=55.0)
+T3 = st.sidebar.number_input("Outlet Subcooled Temp (°C)", value=52.0)
+T_cond = st.sidebar.number_input("Condensing Temp (°C)", value=58.0)
 m_dot = st.sidebar.number_input("Mass Flow Rate (kg/s)", value=0.6)
-air_temp = st.sidebar.number_input("Air Inlet Temp (°C)", value=35.0)
+air_temp = st.sidebar.number_input("Air Inlet Temp (°C)", value=48.0)
 airflow_cmh = st.sidebar.number_input("Air Flow (m³/hr)", value=10000)
 
 # Optional U-Values
