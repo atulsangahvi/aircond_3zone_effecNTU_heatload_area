@@ -1,15 +1,15 @@
-# Streamlit application for air-cooled condenser design - FINAL WORKING VERSION
+# Streamlit application for air-cooled condenser design - DEBUGGING VERSION
 import math
 import streamlit as st
 import pandas as pd
 from CoolProp.CoolProp import PropsSI, get_global_param_string
 
 st.set_page_config(layout="wide")
-st.title("Air-Cooled Condenser Design Tool")
+st.title("Air-Cooled Condenser Design Tool (Debugging Version)")
 
 # ====================== INPUT SECTION ======================
 with st.sidebar:
-    st.header("Geometry Inputs")
+    st.header("🛠️ Geometry Inputs")
     tube_od_mm = st.number_input("Tube Outer Diameter (mm)", min_value=0.1, value=9.525)
     tube_thickness_mm = st.number_input("Tube Wall Thickness (mm)", min_value=0.01, value=0.35)
     row_pitch_mm = st.number_input("Row Pitch (mm)", min_value=0.1, value=25.4)
@@ -23,7 +23,7 @@ with st.sidebar:
     free_area_percent = st.slider("Free Flow Area %", 10, 100, 25)
     num_feeds = st.number_input("Number of Feeds", min_value=1, value=4)
 
-    st.header("Refrigerant Inputs")
+    st.header("❄️ Refrigerant Inputs")
     fluid_list = get_global_param_string("FluidsList").split(',')
     refrigerants = sorted([f for f in fluid_list if f.startswith("R")])
     fluid = st.selectbox("Refrigerant", refrigerants, index=refrigerants.index("R134a") if "R134a" in refrigerants else 0)
@@ -35,6 +35,8 @@ with st.sidebar:
     airflow_cmh = st.number_input("Air Flow (m³/hr)", min_value=1.0, value=10000.0)
 
 # ====================== CALCULATIONS ======================
+st.header("📊 Calculated Parameters")
+
 # Derived Dimensions
 tube_od_m = tube_od_mm / 1000
 tube_thk_m = tube_thickness_mm / 1000
@@ -49,6 +51,20 @@ net_free_area = max(0.001, frontal_area_m2 * (free_area_percent/100))
 airflow_m3s = max(0.001, airflow_cmh / 3600)
 air_velocity_face = airflow_m3s / frontal_area_m2
 air_velocity_fin = airflow_m3s / net_free_area
+
+# Display geometry outputs
+with st.expander("📐 Geometry Calculations", expanded=True):
+    cols = st.columns(4)
+    cols[0].metric("Tube OD", f"{tube_od_m*1000:.2f} mm")
+    cols[1].metric("Tube ID", f"{tube_id_m*1000:.2f} mm")
+    cols[2].metric("True Row Pitch", f"{row_pitch_true_m*1000:.1f} mm")
+    cols[3].metric("Fins/m", f"{fins_per_m:.0f}")
+    
+    cols = st.columns(3)
+    cols[0].metric("Frontal Area", f"{frontal_area_m2:.3f} m²")
+    cols[1].metric("Free Flow Area", f"{net_free_area:.3f} m²")
+    cols[2].metric("Face Velocity", f"{air_velocity_face:.2f} m/s")
+    cols[0].metric("Fin Velocity", f"{air_velocity_fin:.2f} m/s")
 
 # Tube and Fin Counts
 tubes_per_row = max(1, math.floor(face_width_m / tube_pitch_m))
@@ -67,6 +83,21 @@ m = math.sqrt((2*40)/(fin_k*fin_thk_m)) if fin_k*fin_thk_m > 0 else 0
 eta_fin = math.tanh(m*L_fin)/(m*L_fin) if m*L_fin > 0 else 0
 A_air_total = A_tube_ext + A_fin*eta_fin
 A_air_per_m = A_air_total/total_tube_length if total_tube_length > 0 else 0
+area_per_row = A_air_per_m * tube_length_per_tube  # Total air-side area per row
+
+# Display surface areas
+with st.expander("📏 Surface Areas", expanded=True):
+    cols = st.columns(3)
+    cols[0].metric("Tubes per Row", f"{tubes_per_row}")
+    cols[1].metric("Total Tube Length", f"{total_tube_length:.1f} m")
+    cols[2].metric("Tube Outer Area", f"{A_tube_ext:.2f} m²")
+    
+    cols = st.columns(3)
+    cols[0].metric("Fin Area (raw)", f"{A_fin_raw:.2f} m²")
+    cols[1].metric("Fin Area (effective)", f"{A_fin*eta_fin:.2f} m²")
+    cols[2].metric("Total Air-Side Area", f"{A_air_total:.2f} m²")
+    cols[0].metric("Area per Meter", f"{A_air_per_m:.2f} m²/m")
+    cols[1].metric("Area per Row", f"{area_per_row:.2f} m²/row")
 
 # Air Properties
 try:
@@ -82,8 +113,22 @@ try:
     Nu = C * Re**n * Pr**0.36
     h_air = Nu*k_air/tube_od_m if tube_od_m > 0 else 0
     C_air = max(0.001, airflow_m3s*rho_air*cp_air)  # kW/K
+    
+    with st.expander("🌬️ Air Properties", expanded=True):
+        cols = st.columns(4)
+        cols[0].metric("Density", f"{rho_air:.3f} kg/m³")
+        cols[1].metric("Viscosity", f"{mu*1e6:.2f} μPa·s")
+        cols[2].metric("Thermal Cond.", f"{k_air:.4f} W/m·K")
+        cols[3].metric("Specific Heat", f"{cp_air:.3f} kJ/kg·K")
+        
+        cols = st.columns(4)
+        cols[0].metric("Reynolds No.", f"{Re:.0f}")
+        cols[1].metric("Prandtl No.", f"{Pr:.3f}")
+        cols[2].metric("Nusselt No.", f"{Nu:.1f}")
+        cols[3].metric("h (air side)", f"{h_air:.1f} W/m²K")
+        
 except Exception as e:
-    st.error(f"Error calculating air properties: {str(e)}")
+    st.error(f"❌ Error calculating air properties: {str(e)}")
     st.stop()
 
 # Refrigerant Properties
@@ -94,8 +139,20 @@ try:
     h3 = PropsSI("H", "P", P_cond, "Q", 0, fluid)
     h4 = PropsSI("H", "P", P_cond, "T", T3 + 273.15, fluid)
     cp_ref = PropsSI("C", "P", P_cond, "T", (T1+T3)/2 + 273.15, fluid)/1000  # kJ/kg-K
+    
+    with st.expander("🧊 Refrigerant Properties", expanded=True):
+        cols = st.columns(3)
+        cols[0].metric("Condensing Pressure", f"{P_cond/1000:.2f} kPa")
+        cols[1].metric("Superheat Enthalpy", f"{h1/1000:.2f} kJ/kg")
+        cols[2].metric("Vapor Enthalpy", f"{h2/1000:.2f} kJ/kg")
+        
+        cols = st.columns(3)
+        cols[0].metric("Liquid Enthalpy", f"{h3/1000:.2f} kJ/kg")
+        cols[1].metric("Subcool Enthalpy", f"{h4/1000:.2f} kJ/kg")
+        cols[2].metric("Avg Cp", f"{cp_ref:.3f} kJ/kg·K")
+        
 except Exception as e:
-    st.error(f"Error calculating refrigerant properties: {str(e)}")
+    st.error(f"❌ Error calculating refrigerant properties: {str(e)}")
     st.stop()
 
 # Heat Loads
@@ -117,7 +174,18 @@ U_desuper = calculate_U(h_ref_desuper, h_air)
 U_cond = calculate_U(h_ref_cond, h_air)
 U_subcool = calculate_U(h_ref_subcool, h_air)
 
-# Zone data in CORRECTED air flow sequence
+with st.expander("🔥 Heat Transfer Parameters", expanded=True):
+    cols = st.columns(3)
+    cols[0].metric("Desuperheat U", f"{U_desuper:.1f} W/m²K")
+    cols[1].metric("Condensing U", f"{U_cond:.1f} W/m²K")
+    cols[2].metric("Subcooling U", f"{U_subcool:.1f} W/m²K")
+    
+    cols = st.columns(3)
+    cols[0].metric("Desuperheat Q", f"{Q_sens:.2f} kW")
+    cols[1].metric("Condensing Q", f"{Q_lat:.2f} kW")
+    cols[2].metric("Subcooling Q", f"{Q_sub:.2f} kW")
+
+# ====================== ZONE CALCULATIONS ======================
 zone_data = [
     ("Subcooling", Q_sub, U_subcool, h_ref_subcool, T3),
     ("Condensing", Q_lat, U_cond, h_ref_cond, T_cond),
@@ -125,13 +193,17 @@ zone_data = [
 ]
 
 zone_outputs = []
-air_t = air_temp
+diagnostics = []
+air_t = air_temp  # Initial air temperature
+cumulative_rows = 0
 
 for label, Q_zone, U, h_ref, T_ref in zone_data:
     if Q_zone <= 0:
         zone_outputs.append((label, 0, 0, 0, 0, air_t))
+        diagnostics.append((label, 0, 0, 0, 0, 0, 0, 0, 0))
         continue
         
+    # Capacity rates
     if label == "Condensing":
         C_min = C_air
         C_star = 0
@@ -140,11 +212,13 @@ for label, Q_zone, U, h_ref, T_ref in zone_data:
         C_min = min(C_air, C_r)
         C_star = C_min / max(0.001, max(C_air, C_r))
     
+    # Effectiveness calculation
     delta_T = max(0.1, abs(T_ref - air_t))
     eps = min(0.999, Q_zone/(C_min*delta_T)) if (C_min*delta_T) > 0 else 0
     
+    # NTU calculation
     try:
-        if C_star == 0:
+        if C_star == 0:  # Condensation
             NTU = -math.log(max(0.001, 1-eps))
         else:
             if eps >= 1:
@@ -159,62 +233,110 @@ for label, Q_zone, U, h_ref, T_ref in zone_data:
                 else:
                     NTU = (1/(C_star-1 + 1e-9)) * math.log(numerator/denominator)
     except:
-        NTU = 100
+        NTU = 100  # Fallback value
     
+    # Area requirements
     A_required = NTU * C_min * 1000 / max(1, U)
-    tube_len_zone = A_required / max(0.001, A_air_per_m)
-    rows_zone = tube_len_zone / max(0.001, (tube_length_per_tube*tubes_per_row))
-    air_out = air_t + Q_zone/max(0.001, C_air)
-    zone_outputs.append((label, Q_zone, A_required, tube_len_zone, rows_zone, air_out))
+    
+    # Key change: Calculate fractional rows needed for this zone
+    rows_needed = A_required / area_per_row if area_per_row > 0 else 0
+    remaining_rows = max(0, num_rows - cumulative_rows)
+    
+    # Actual rows used can't exceed remaining rows
+    rows_used = min(rows_needed, remaining_rows)
+    cumulative_rows += rows_used
+    
+    # Update air temperature based on actual heat transfer
+    Q_actual = rows_used * area_per_row * U * delta_T / 1000 if rows_used > 0 else 0
+    air_out = air_t + (Q_actual/max(0.001, C_air)) if Q_actual > 0 else air_t
+    
+    zone_outputs.append((label, Q_zone, A_required, rows_needed, rows_used, air_out))
+    diagnostics.append((label, C_min, C_star, delta_T, eps, NTU, U, area_per_row, Q_actual))
     air_t = air_out
 
 # ====================== OUTPUT SECTION ======================
-st.subheader("Design Summary")
-col1, col2 = st.columns(2)
-with col1:
-    st.metric("Total Heat Load", f"{Q_sens + Q_lat + Q_sub:.2f} kW")
-    st.metric("Required Area", f"{sum([z[2] for z in zone_outputs]):.2f} m²")
-    st.metric("Provided Area", f"{A_air_total:.2f} m²")
-with col2:
-    st.metric("Required Rows", f"{sum([z[4] for z in zone_outputs]):.1f}")
-    st.metric("Provided Rows", f"{num_rows}")
-    st.metric("Air Flow", f"{airflow_m3s:.3f} m³/s")
+st.header("📋 Design Results")
 
-st.subheader("Zone-by-Zone Results")
+# Main summary
+cols = st.columns(4)
+cols[0].metric("Total Heat Load", f"{Q_sens + Q_lat + Q_sub:.2f} kW", delta_color="off")
+cols[1].metric("Required Area", f"{sum([z[2] for z in zone_outputs]):.2f} m²", 
+               delta=f"{sum([z[2] for z in zone_outputs])-A_air_total:.2f} vs provided")
+cols[2].metric("Rows Utilization", f"{cumulative_rows:.3f}/{num_rows}",
+              delta=f"{(cumulative_rows/num_rows*100):.1f}% used")
+cols[3].metric("Air Out Temp", f"{air_t:.1f} °C", delta_color="off")
+
+# Detailed zone results
+st.subheader("🔍 Zone-by-Zone Results")
 df = pd.DataFrame(zone_outputs, columns=[
-    "Zone", "Q (kW)", "Area (m²)", "Tube Length (m)", "Rows Needed", "Air Out Temp (°C)"
+    "Zone", "Q (kW)", "Area Needed (m²)", "Rows Needed", "Rows Used", "Air Out Temp (°C)"
 ])
 st.dataframe(df.style.format({
     "Q (kW)": "{:.2f}",
-    "Area (m²)": "{:.2f}",
-    "Tube Length (m)": "{:.2f}",
-    "Rows Needed": "{:.2f}",
+    "Area Needed (m²)": "{:.2f}",
+    "Rows Needed": "{:.3f}",
+    "Rows Used": "{:.3f}",
     "Air Out Temp (°C)": "{:.2f}"
 }))
 
-st.subheader("Air Flow Sequence")
+# Diagnostic data
+st.subheader("🛠️ Diagnostic Parameters")
+diag_df = pd.DataFrame(diagnostics, columns=[
+    "Zone", "C_min (kW/K)", "C*", "ΔT (°C)", "ε", "NTU", "U (W/m²K)", 
+    "Area/Row (m²)", "Q_actual (kW)"
+])
+st.dataframe(diag_df.style.format({
+    "C_min (kW/K)": "{:.3f}",
+    "C*": "{:.3f}",
+    "ΔT (°C)": "{:.1f}",
+    "ε": "{:.3f}",
+    "NTU": "{:.2f}",
+    "U (W/m²K)": "{:.1f}",
+    "Area/Row (m²)": "{:.2f}",
+    "Q_actual (kW)": "{:.2f}"
+}))
+
+# Air flow sequence
+st.subheader("🌪️ Air Flow Sequence")
 st.markdown("""
 1. **Subcooling Section**: Ambient air first cools the subcooled liquid (coldest refrigerant)
 2. **Condensing Section**: Air then flows through the condensing section  
 3. **Desuperheating Section**: Finally passes through the desuperheating section (hottest refrigerant)
+
+*Note: All zones share the same physical rows sequentially*
 """)
 
 # Design verification
-total_area = sum([z[2] for z in zone_outputs])
-total_rows = sum([z[4] for z in zone_outputs])
-
-if total_rows > num_rows * 1.1:
-    st.error(f"Design requires {total_rows:.1f} rows but only {num_rows} provided")
-elif total_area > A_air_total * 1.1:
-    st.warning(f"Design requires {total_area:.1f} m² but only {A_air_total:.1f} provided")
+if cumulative_rows > num_rows * 1.01:  # 1% tolerance
+    st.error(f"⚠️ **Design Issue**: Requires {cumulative_rows:.3f} rows but only {num_rows} provided")
+    
+    st.warning("""
+    **Possible causes for high row requirement:**
+    - Low air-side heat transfer coefficient (current: {h_air:.1f} W/m²K)
+    - Small temperature differences (min ΔT: {min([d[3] for d in diagnostics if d[3]>0]):.1f}°C)
+    - High heat loads relative to airflow
+    - Low fin efficiency (current: {eta_fin:.2f})
+    - Underestimated U-values
+    """)
+elif sum([z[2] for z in zone_outputs]) > A_air_total * 1.05:
+    st.warning(f"⚠️ **Design Note**: Requires {sum([z[2] for z in zone_outputs]):.1f} m² but only {A_air_total:.1f} provided")
 else:
-    st.success("Design meets requirements")
+    st.success("✅ Design meets requirements")
 
-# Download button
-csv = df.to_csv(index=False)
-st.download_button(
-    label="Download Results as CSV",
-    data=csv,
-    file_name="condenser_design_results.csv",
+# Download buttons
+csv1 = df.to_csv(index=False)
+csv2 = diag_df.to_csv(index=False)
+
+cols = st.columns(2)
+cols[0].download_button(
+    label="Download Zone Results",
+    data=csv1,
+    file_name="condenser_zone_results.csv",
+    mime="text/csv"
+)
+cols[1].download_button(
+    label="Download Diagnostics",
+    data=csv2,
+    file_name="condenser_diagnostics.csv",
     mime="text/csv"
 )
